@@ -1,0 +1,29 @@
+modules = ["go"]
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "ATS Resume Analyzer"
+
+[[workflows.workflow]]
+name = "ATS Resume Analyzer"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "go mod tidy && go run main.go"
+waitForPort = 5000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
