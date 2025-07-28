@@ -1,11 +1,13 @@
 package handlers
 
 import (
+        "ats-analyzer/models"
         "ats-analyzer/services"
         "ats-analyzer/utils"
         "fmt"
         "net/http"
         "path/filepath"
+        "strings"
 
         "github.com/gin-gonic/gin"
         "github.com/sirupsen/logrus"
@@ -42,14 +44,8 @@ func AnalyzeResume(c *gin.Context) {
                 return
         }
 
-        // Get job description
+        // Get job description (optional)
         jobDescText := c.PostForm("job_description")
-        if jobDescText == "" {
-                c.JSON(http.StatusBadRequest, gin.H{
-                        "error": "Job description is required",
-                })
-                return
-        }
 
         // Save uploaded file temporarily
         filename := fmt.Sprintf("uploads/%d_%s", 
@@ -75,19 +71,25 @@ func AnalyzeResume(c *gin.Context) {
                 return
         }
 
-        // Parse job description
-        jobDesc, err := parser.ParseJobDescription(jobDescText)
-        if err != nil {
-                logrus.Errorf("Failed to parse job description: %v", err)
-                c.JSON(http.StatusInternalServerError, gin.H{
-                        "error": "Failed to parse job description: " + err.Error(),
-                })
-                return
-        }
-
         // Analyze and score
         scorer := services.NewScorer()
-        analysis := scorer.AnalyzeResume(resume, jobDesc)
+        var analysis *models.AnalysisResult
+        
+        if jobDescText != "" && strings.TrimSpace(jobDescText) != "" {
+                // Parse job description if provided
+                jobDesc, err := parser.ParseJobDescription(jobDescText)
+                if err != nil {
+                        logrus.Errorf("Failed to parse job description: %v", err)
+                        c.JSON(http.StatusInternalServerError, gin.H{
+                                "error": "Failed to parse job description: " + err.Error(),
+                        })
+                        return
+                }
+                analysis = scorer.AnalyzeResume(resume, jobDesc)
+        } else {
+                // Analyze resume without job description
+                analysis = scorer.AnalyzeResumeStandalone(resume)
+        }
 
         // Clean up temporary file
         utils.CleanupFile(filename)

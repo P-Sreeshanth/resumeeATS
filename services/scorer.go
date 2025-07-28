@@ -36,6 +36,65 @@ func DefaultWeights() ScoringWeights {
         }
 }
 
+// AnalyzeResumeStandalone analyzes resume without job description
+func (s *Scorer) AnalyzeResumeStandalone(resume *models.Resume) *models.AnalysisResult {
+        weights := DefaultWeights()
+
+        // Calculate standalone scores
+        skillScore := s.calculateSkillScoreStandalone(resume)
+        experienceScore := s.calculateExperienceScoreStandalone(resume)
+        educationScore := s.calculateEducationScoreStandalone(resume)
+        formatScore := s.calculateFormatScore(resume)
+
+        // Calculate overall score
+        overallScore := skillScore*weights.SkillWeight +
+                experienceScore*weights.ExperienceWeight +
+                educationScore*weights.EducationWeight +
+                formatScore.Score*weights.FormatWeight
+
+        // Convert to 0-100 scale
+        overallScore *= 100
+
+        // Generate standalone suggestions
+        suggestions := s.generateStandaloneSuggestions(resume, formatScore)
+
+        return &models.AnalysisResult{
+                Score: overallScore,
+                SkillMatch: models.SkillMatchResult{
+                        Percentage:    skillScore * 100,
+                        MatchedSkills: resume.Skills,
+                        MissingSkills: []string{},
+                        TotalRequired: len(resume.Skills),
+                        TotalMatched:  len(resume.Skills),
+                },
+                ExperienceMatch: models.ExperienceResult{
+                        Score:            experienceScore,
+                        YearsRequired:    0,
+                        YearsCandidate:   resume.CalculateExperienceYears(),
+                        MeetsRequirement: true,
+                },
+                EducationMatch: models.EducationResult{
+                        Score:                educationScore,
+                        MatchedDegrees:       s.extractDegreeNames(resume.Education),
+                        HasRequiredEducation: len(resume.Education) > 0,
+                },
+                FormatScore:     formatScore,
+                MissingKeywords: []string{},
+                MatchedKeywords: resume.Skills,
+                Suggestions:     suggestions,
+                ScoreBreakdown: models.ScoreBreakdown{
+                        SkillWeight:      weights.SkillWeight,
+                        ExperienceWeight: weights.ExperienceWeight,
+                        EducationWeight:  weights.EducationWeight,
+                        FormatWeight:     weights.FormatWeight,
+                        SkillScore:       skillScore * 100,
+                        ExperienceScore:  experienceScore * 100,
+                        EducationScore:   educationScore * 100,
+                        FormatScore:      formatScore.Score * 100,
+                },
+        }
+}
+
 // AnalyzeResume performs comprehensive resume analysis
 func (s *Scorer) AnalyzeResume(resume *models.Resume, jobDesc *models.JobDescription) *models.AnalysisResult {
         weights := DefaultWeights()
@@ -330,6 +389,151 @@ func (s *Scorer) educationMatches(candidateEd, requiredEd string) bool {
         }
 
         return false
+}
+
+// calculateSkillScoreStandalone calculates skill score without job description
+func (s *Scorer) calculateSkillScoreStandalone(resume *models.Resume) float64 {
+        // Score based on number of skills identified and diversity
+        skillCount := len(resume.Skills)
+        if skillCount == 0 {
+                return 0.0
+        }
+        
+        // Base score for having skills
+        baseScore := 0.3
+        
+        // Additional score based on skill count (up to 20 skills)
+        skillBonus := float64(skillCount) / 20.0
+        if skillBonus > 0.7 {
+                skillBonus = 0.7
+        }
+        
+        return baseScore + skillBonus
+}
+
+// calculateExperienceScoreStandalone calculates experience score without job description
+func (s *Scorer) calculateExperienceScoreStandalone(resume *models.Resume) float64 {
+        years := resume.CalculateExperienceYears()
+        
+        if years == 0 {
+                return 0.0
+        } else if years < 1 {
+                return 0.2
+        } else if years < 3 {
+                return 0.5
+        } else if years < 5 {
+                return 0.7
+        } else if years < 10 {
+                return 0.9
+        } else {
+                return 1.0
+        }
+}
+
+// calculateEducationScoreStandalone calculates education score without job description
+func (s *Scorer) calculateEducationScoreStandalone(resume *models.Resume) float64 {
+        if len(resume.Education) == 0 {
+                return 0.3 // Some score for lack of formal education
+        }
+        
+        // Score based on highest degree level
+        maxScore := 0.0
+        for _, edu := range resume.Education {
+                degree := strings.ToLower(edu.Degree)
+                var score float64
+                
+                if strings.Contains(degree, "phd") || strings.Contains(degree, "doctorate") {
+                        score = 1.0
+                } else if strings.Contains(degree, "master") || strings.Contains(degree, "mba") {
+                        score = 0.9
+                } else if strings.Contains(degree, "bachelor") || strings.Contains(degree, "b.s") || strings.Contains(degree, "b.a") {
+                        score = 0.8
+                } else if strings.Contains(degree, "associate") {
+                        score = 0.6
+                } else if strings.Contains(degree, "diploma") || strings.Contains(degree, "certificate") {
+                        score = 0.5
+                } else {
+                        score = 0.4
+                }
+                
+                if score > maxScore {
+                        maxScore = score
+                }
+        }
+        
+        return maxScore
+}
+
+// generateStandaloneSuggestions generates suggestions for resume without job description
+func (s *Scorer) generateStandaloneSuggestions(resume *models.Resume, formatScore models.FormatResult) []string {
+        var suggestions []string
+        
+        // Skills suggestions
+        if len(resume.Skills) < 5 {
+                suggestions = append(suggestions, "Add more relevant technical and soft skills to your resume.")
+        }
+        
+        // Experience suggestions
+        years := resume.CalculateExperienceYears()
+        if years < 1 {
+                suggestions = append(suggestions, "Include internships, projects, or volunteer work to demonstrate experience.")
+        }
+        
+        // Education suggestions
+        if len(resume.Education) == 0 {
+                suggestions = append(suggestions, "Add your educational background including degrees, certifications, or relevant coursework.")
+        }
+        
+        // Contact info suggestions
+        if resume.PersonalInfo.Email == "" {
+                suggestions = append(suggestions, "Include your email address in the contact section.")
+        }
+        if resume.PersonalInfo.Phone == "" {
+                suggestions = append(suggestions, "Add your phone number to make it easy for employers to contact you.")
+        }
+        
+        // Format suggestions
+        for _, issue := range formatScore.Issues {
+                switch {
+                case strings.Contains(issue, "table"):
+                        suggestions = append(suggestions, "Avoid using tables - use bullet points and clear headings instead.")
+                case strings.Contains(issue, "column"):
+                        suggestions = append(suggestions, "Use a single-column layout for better ATS readability.")
+                case strings.Contains(issue, "too long"):
+                        suggestions = append(suggestions, "Consider condensing your resume to 1-2 pages for better readability.")
+                }
+        }
+        
+        // General improvements
+        hasQuantifiedResults := strings.Contains(strings.ToLower(resume.RawText), "%") || 
+                strings.Contains(strings.ToLower(resume.RawText), "increased") ||
+                strings.Contains(strings.ToLower(resume.RawText), "reduced") ||
+                strings.Contains(strings.ToLower(resume.RawText), "improved")
+        
+        if !hasQuantifiedResults {
+                suggestions = append(suggestions, "Add quantified achievements (e.g., 'Increased sales by 20%', 'Managed team of 5 people').")
+        }
+        
+        if len(resume.Projects) == 0 {
+                suggestions = append(suggestions, "Include relevant projects to showcase your practical skills and experience.")
+        }
+        
+        if len(resume.Certifications) == 0 {
+                suggestions = append(suggestions, "Add professional certifications or relevant training to strengthen your profile.")
+        }
+        
+        return suggestions
+}
+
+// extractDegreeNames extracts degree names from education list
+func (s *Scorer) extractDegreeNames(education []models.Education) []string {
+        var degrees []string
+        for _, edu := range education {
+                if edu.Degree != "" {
+                        degrees = append(degrees, edu.Degree)
+                }
+        }
+        return degrees
 }
 
 

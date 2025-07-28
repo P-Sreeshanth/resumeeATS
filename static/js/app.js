@@ -85,13 +85,9 @@ class ATSAnalyzer {
             return;
         }
 
-        if (!jobDescription.trim()) {
-            this.showError('Please enter a job description.');
-            return;
-        }
-
-        if (jobDescription.trim().length < 50) {
-            this.showError('Job description is too short. Please provide more details.');
+        // Job description is optional, but if provided should be meaningful
+        if (jobDescription.trim() && jobDescription.trim().length < 20) {
+            this.showError('If providing a job description, please include at least 20 characters for meaningful analysis.');
             return;
         }
 

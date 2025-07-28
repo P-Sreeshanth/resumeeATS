@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a rule-based ATS (Applicant Tracking System) Resume Analyzer that evaluates how well resumes match job descriptions without using Large Language Models (LLMs). The system uses traditional NLP techniques, keyword matching, and scoring algorithms to provide instant feedback on resume-job fit, similar to how enterprise ATS systems like Taleo, Workday, and Greenhouse operate.
+This is a Go-based rule-based ATS (Applicant Tracking System) Resume Analyzer that provides comprehensive resume scoring and analysis. The system can analyze resumes both standalone (for general quality assessment) and against specific job descriptions (for targeted matching). It uses traditional NLP techniques, keyword matching, and scoring algorithms without requiring Large Language Models (LLMs), providing instant feedback similar to how enterprise ATS systems operate.
 
 ## User Preferences
 
@@ -12,10 +12,19 @@ Preferred communication style: Simple, everyday language.
 
 The application follows a traditional web application architecture with:
 
-- **Frontend**: Static HTML/CSS/JavaScript with Bootstrap for UI components
-- **Backend**: Python-based (Flask/FastAPI) for resume processing and analysis
-- **Processing Engine**: Rule-based NLP using libraries like Spacy, NLTK, and scikit-learn
+- **Frontend**: Static HTML/CSS/JavaScript with Bootstrap for UI components and Chart.js for visualizations
+- **Backend**: Go-based using Gin framework for HTTP handling and resume processing
+- **Processing Engine**: Custom rule-based NLP with TF-IDF, cosine similarity, and keyword matching
+- **File Processing**: PDF and DOCX parsing with temporary file handling
 - **No Database Required**: Stateless processing with file-based input/output
+
+## Recent Changes (July 2025)
+
+- **Dual Analysis Modes**: System now supports both standalone resume analysis and job-description-targeted analysis
+- **Optional Job Description**: Users can analyze resumes without providing job descriptions for general quality scoring
+- **Go Implementation**: Migrated from Python concept to full Go implementation using Gin, PDF libraries, and custom NLP
+- **Standalone Scoring**: Added comprehensive scoring for skills, experience, education, and format without job comparison
+- **Enhanced UI**: Updated interface to clearly indicate job description is optional
 
 ## Key Components
 
